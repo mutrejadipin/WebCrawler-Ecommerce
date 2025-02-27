@@ -145,22 +145,58 @@ func initDB() {
 
 
 // --- Initialize Redis Client ---
+// func initRedis() {
+// 	//redisAddr := os.Getenv("REDIS_ADDR")
+// 	redisAddr := os.Getenv("REDIS_URL")
+// 	redisAddr = strings.TrimSpace(redisAddr)
+// 	if redisAddr == "" {
+// 		log.Fatal("REDIS_ADDR is missing in .env file")
+// 	}
+
+// 	redisClient = redis.NewClient(&redis.Options{Addr: redisAddr})
+// 	_, err := redisClient.Ping(context.Background()).Result()
+// 	if err != nil {
+// 		log.Fatalf("Failed to connect to Redis: %v", err)
+// 	}
+
+// 	log.Println("Redis connected successfully")
+// }
+
+
 func initRedis() {
-	//redisAddr := os.Getenv("REDIS_ADDR")
-	redisAddr := os.Getenv("REDIS_URL")
-	redisAddr = strings.TrimSpace(redisAddr)
-	if redisAddr == "" {
-		log.Fatal("REDIS_ADDR is missing in .env file")
+	// Get Redis URL from environment variables
+	redisURL := os.Getenv("REDIS_URL")
+	redisURL = strings.TrimSpace(redisURL) // Remove trailing newline/spaces
+
+	if redisURL == "" {
+		log.Fatal("REDIS_URL environment variable is missing. Set it in Railway.")
 	}
 
-	redisClient = redis.NewClient(&redis.Options{Addr: redisAddr})
-	_, err := redisClient.Ping(context.Background()).Result()
+	// Parse Redis URL to extract host and password
+	parsedURL, err := url.Parse(redisURL)
+	if err != nil {
+		log.Fatalf("Invalid REDIS_URL format: %v", err)
+	}
+
+	// Extract password (if available)
+	redisPassword, _ := parsedURL.User.Password()
+	redisHost := parsedURL.Host // This contains "host:port"
+
+	// Create Redis client
+	redisClient = redis.NewClient(&redis.Options{
+		Addr:     redisHost,
+		Password: redisPassword, // If no password, this will be empty
+	})
+
+	// Test Redis connection
+	_, err = redisClient.Ping(context.Background()).Result()
 	if err != nil {
 		log.Fatalf("Failed to connect to Redis: %v", err)
 	}
 
 	log.Println("Redis connected successfully")
 }
+
 
 // --- Check if URL is Already Visited (Redis) ---
 func isURLVisited(url string) bool {
