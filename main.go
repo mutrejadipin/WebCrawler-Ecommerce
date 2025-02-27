@@ -58,29 +58,75 @@ type CrawlResult struct {
 // }
 
 // --- Initialize PostgreSQL Connection ---
+// func initDB() {
+// 	//loadEnv() // Load env variables
+
+// 	dbHost := os.Getenv("DB_HOST")
+// 	dbUser := os.Getenv("DB_USER")
+// 	dbPassword := os.Getenv("DB_PASSWORD")
+// 	dbName := os.Getenv("DB_NAME")
+// 	dbPort := os.Getenv("DB_PORT")
+
+// 	if dbHost == "" || dbUser == "" || dbPassword == "" || dbName == "" || dbPort == "" {
+// 		log.Fatal("Database credentials are missing in .env file")
+// 	}
+
+// 	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
+// 		dbHost, dbUser, dbPassword, dbName, dbPort)
+
+// 	var err error
+// 	db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+// 	if err != nil {
+// 		log.Fatalf("Database connection failed: %v", err)
+// 	}
+
+// 	// Configure connection pooling
+// 	sqlDB, err := db.DB()
+// 	if err != nil {
+// 		log.Fatalf("Failed to configure DB connection pool: %v", err)
+// 	}
+// 	sqlDB.SetMaxOpenConns(20) // Max 20 concurrent connections
+// 	sqlDB.SetMaxIdleConns(10) // Keep 10 idle connections
+// 	sqlDB.SetConnMaxLifetime(30 * time.Minute)
+
+// 	// Auto-create table
+// 	db.AutoMigrate(&ProductURL{})
+// 	log.Println("Database initialized successfully")
+// }
+
 func initDB() {
-	//loadEnv() // Load env variables
+	// First, check if Railway's `DATABASE_URL` is available
+	dbURL := os.Getenv("DATABASE_URL")
 
-	dbHost := os.Getenv("DB_HOST")
-	dbUser := os.Getenv("DB_USER")
-	dbPassword := os.Getenv("DB_PASSWORD")
-	dbName := os.Getenv("DB_NAME")
-	dbPort := os.Getenv("DB_PORT")
+	if dbURL != "" {
+		// If `DATABASE_URL` exists (on Railway), use it directly
+		log.Println("Using Railway DATABASE_URL for DB connection")
+	} else {
+		// Otherwise, fallback to individual `.env` variables (for local development)
+		dbHost := os.Getenv("DB_HOST")
+		dbUser := os.Getenv("DB_USER")
+		dbPassword := os.Getenv("DB_PASSWORD")
+		dbName := os.Getenv("DB_NAME")
+		dbPort := os.Getenv("DB_PORT")
 
-	if dbHost == "" || dbUser == "" || dbPassword == "" || dbName == "" || dbPort == "" {
-		log.Fatal("Database credentials are missing in .env file")
+		if dbHost == "" || dbUser == "" || dbPassword == "" || dbName == "" || dbPort == "" {
+			log.Fatal("Database credentials are missing in environment variables")
+		}
+
+		// Construct DSN for local PostgreSQL
+		dbURL = fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
+			dbHost, dbUser, dbPassword, dbName, dbPort)
+		log.Println("Using local PostgreSQL connection string")
 	}
 
-	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
-		dbHost, dbUser, dbPassword, dbName, dbPort)
-
+	// Connect to PostgreSQL
 	var err error
-	db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	db, err = gorm.Open(postgres.Open(dbURL), &gorm.Config{})
 	if err != nil {
 		log.Fatalf("Database connection failed: %v", err)
 	}
 
-	// Configure connection pooling
+	// Configure DB Connection Pooling
 	sqlDB, err := db.DB()
 	if err != nil {
 		log.Fatalf("Failed to configure DB connection pool: %v", err)
@@ -89,10 +135,11 @@ func initDB() {
 	sqlDB.SetMaxIdleConns(10) // Keep 10 idle connections
 	sqlDB.SetConnMaxLifetime(30 * time.Minute)
 
-	// Auto-create table
+	// Auto-create tables if needed
 	db.AutoMigrate(&ProductURL{})
 	log.Println("Database initialized successfully")
 }
+
 
 // --- Initialize Redis Client ---
 func initRedis() {
