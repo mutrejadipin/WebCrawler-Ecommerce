@@ -146,7 +146,9 @@ func initDB() {
 
 // --- Initialize Redis Client ---
 func initRedis() {
-	redisAddr := os.Getenv("REDIS_ADDR")
+	//redisAddr := os.Getenv("REDIS_ADDR")
+	redisAddr := os.Getenv("REDIS_URL")
+	redisAddr = strings.TrimSpace(redisAddr)
 	if redisAddr == "" {
 		log.Fatal("REDIS_ADDR is missing in .env file")
 	}
