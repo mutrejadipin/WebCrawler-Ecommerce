@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/chromedp/chromedp"
-	"github.com/joho/godotenv"
+	//"github.com/joho/godotenv"
 	"github.com/redis/go-redis/v9"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -50,16 +50,16 @@ type CrawlResult struct {
 }
 
 // --- Load Environment Variables ---
-func loadEnv() {
-	err := godotenv.Load(".env")
-	if err != nil {
-		log.Fatal("Error loading .env file")
-	}
-}
+// func loadEnv() {
+// 	err := godotenv.Load(".env")
+// 	if err != nil {
+// 		log.Fatal("Error loading .env file")
+// 	}
+// }
 
 // --- Initialize PostgreSQL Connection ---
 func initDB() {
-	loadEnv() // Load env variables
+	//loadEnv() // Load env variables
 
 	dbHost := os.Getenv("DB_HOST")
 	dbUser := os.Getenv("DB_USER")
