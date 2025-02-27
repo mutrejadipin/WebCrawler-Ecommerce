@@ -8,6 +8,8 @@ import (
 	"math/rand"
 	"os"
 	"regexp"
+	"strings"
+
 	//"strconv"
 	"sync"
 	"time"
@@ -97,6 +99,7 @@ type CrawlResult struct {
 func initDB() {
 	// First, check if Railway's `DATABASE_URL` is available
 	dbURL := os.Getenv("DATABASE_URL")
+	dbURL = strings.TrimSpace(dbURL)
 
 	if dbURL != "" {
 		// If `DATABASE_URL` exists (on Railway), use it directly
