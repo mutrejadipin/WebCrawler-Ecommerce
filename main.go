@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"net/url"
 	"os"
 	"regexp"
 	"strings"
@@ -23,10 +24,10 @@ import (
 
 // --- Constants ---
 const (
-	redisExpiry     = 24 * time.Hour
-	crawlTimeout    = 30 * time.Second
-	scrollAttempts  = 5
-	pageLoadDelay   = 2 * time.Second
+	redisExpiry    = 24 * time.Hour
+	crawlTimeout   = 30 * time.Second
+	scrollAttempts = 5
+	pageLoadDelay  = 2 * time.Second
 )
 
 // --- Global Variables ---
@@ -143,12 +144,9 @@ func initDB() {
 	log.Println("Database initialized successfully")
 }
 
-
 // --- Initialize Redis Client ---
 // func initRedis() {
 // 	//redisAddr := os.Getenv("REDIS_ADDR")
-// 	redisAddr := os.Getenv("REDIS_URL")
-// 	redisAddr = strings.TrimSpace(redisAddr)
 // 	if redisAddr == "" {
 // 		log.Fatal("REDIS_ADDR is missing in .env file")
 // 	}
@@ -161,7 +159,6 @@ func initDB() {
 
 // 	log.Println("Redis connected successfully")
 // }
-
 
 func initRedis() {
 	// Get Redis URL from environment variables
@@ -197,7 +194,6 @@ func initRedis() {
 	log.Println("Redis connected successfully")
 }
 
-
 // --- Check if URL is Already Visited (Redis) ---
 func isURLVisited(url string) bool {
 	exists, err := redisClient.Exists(context.Background(), url).Result()
@@ -205,7 +201,7 @@ func isURLVisited(url string) bool {
 		log.Printf("Redis error: %v", err)
 		return false
 	}
-	return exists > 0
+	return exists> 0
 }
 
 // --- Mark URL as Visited (Redis) ---
@@ -230,21 +226,21 @@ func performInfiniteScroll(ctx context.Context) {
 }
 
 // --- Handle Pagination ---
-func clickNextPage(ctx context.Context) bool {
-	var nextExists bool
-	err := chromedp.Run(ctx,
-		chromedp.Evaluate(`document.querySelector('a.next-page') !== null`, &nextExists),
-	)
-	if err != nil || !nextExists {
-		return false
-	}
+// func clickNextPage(ctx context.Context) bool {
+// 	var nextExists bool
+// 	err := chromedp.Run(ctx,
+// 		chromedp.Evaluate(`document.querySelector('a.next-page') !== null`, &nextExists),
+// 	)
+// 	if err != nil || !nextExists {
+// 		return false
+// 	}
 
-	err = chromedp.Run(ctx,
-		chromedp.Evaluate(`document.querySelector('a.next-page').click()`, nil),
-		chromedp.Sleep(pageLoadDelay),
-	)
-	return err == nil
-}
+// 	err = chromedp.Run(ctx,
+// 		chromedp.Evaluate(`document.querySelector('a.next-page').click()`, nil),
+// 		chromedp.Sleep(pageLoadDelay),
+// 	)
+// 	return err == nil
+// }
 
 // --- Store Product URLs in Database ---
 func storeProductURLs(urls []string, domain string) {
@@ -261,7 +257,6 @@ func storeProductURLs(urls []string, domain string) {
 		}
 	}
 }
-
 
 // --- Extract Product URLs from Page ---
 func extractProductURLs(htmlContent, baseURL string) []string {
