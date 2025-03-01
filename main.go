@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	//"fmt"
 	"log"
 	"math/rand"
 	"net/url"
@@ -97,52 +97,69 @@ type CrawlResult struct {
 // 	log.Println("Database initialized successfully")
 // }
 
+// func initDB() {
+// 	// First, check if Railway's `DATABASE_URL` is available
+// 	dbURL := os.Getenv("DATABASE_URL")
+// 	dbURL = strings.TrimSpace(dbURL)
+
+// 	if dbURL != "" {
+// 		// If `DATABASE_URL` exists (on Railway), use it directly
+// 		log.Println("Using Railway DATABASE_URL for DB connection")
+// 	} else {
+// 		// Otherwise, fallback to individual `.env` variables (for local development)
+// 		dbHost := os.Getenv("DB_HOST")
+// 		dbUser := os.Getenv("DB_USER")
+// 		dbPassword := os.Getenv("DB_PASSWORD")
+// 		dbName := os.Getenv("DB_NAME")
+// 		dbPort := os.Getenv("DB_PORT")
+
+// 		if dbHost == "" || dbUser == "" || dbPassword == "" || dbName == "" || dbPort == "" {
+// 			log.Fatal("Database credentials are missing in environment variables")
+// 		}
+
+// 		// Construct DSN for local PostgreSQL
+// 		dbURL = fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
+// 			dbHost, dbUser, dbPassword, dbName, dbPort)
+// 		log.Println("Using local PostgreSQL connection string")
+// 	}
+
+// 	// Connect to PostgreSQL
+// 	var err error
+// 	db, err = gorm.Open(postgres.Open(dbURL), &gorm.Config{})
+// 	if err != nil {
+// 		log.Fatalf("Database connection failed: %v", err)
+// 	}
+
+// 	// Configure DB Connection Pooling
+// 	sqlDB, err := db.DB()
+// 	if err != nil {
+// 		log.Fatalf("Failed to configure DB connection pool: %v", err)
+// 	}
+// 	sqlDB.SetMaxOpenConns(20) // Max 20 concurrent connections
+// 	sqlDB.SetMaxIdleConns(10) // Keep 10 idle connections
+// 	sqlDB.SetConnMaxLifetime(30 * time.Minute)
+
+// 	// Auto-create tables if needed
+// 	db.AutoMigrate(&ProductURL{})
+// 	log.Println("Database initialized successfully")
+// }
 func initDB() {
-	// First, check if Railway's `DATABASE_URL` is available
 	dbURL := os.Getenv("DATABASE_URL")
-	dbURL = strings.TrimSpace(dbURL)
+	dbURL = strings.TrimSpace(dbURL) // Remove any trailing spaces/newlines
 
-	if dbURL != "" {
-		// If `DATABASE_URL` exists (on Railway), use it directly
-		log.Println("Using Railway DATABASE_URL for DB connection")
-	} else {
-		// Otherwise, fallback to individual `.env` variables (for local development)
-		dbHost := os.Getenv("DB_HOST")
-		dbUser := os.Getenv("DB_USER")
-		dbPassword := os.Getenv("DB_PASSWORD")
-		dbName := os.Getenv("DB_NAME")
-		dbPort := os.Getenv("DB_PORT")
-
-		if dbHost == "" || dbUser == "" || dbPassword == "" || dbName == "" || dbPort == "" {
-			log.Fatal("Database credentials are missing in environment variables")
-		}
-
-		// Construct DSN for local PostgreSQL
-		dbURL = fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
-			dbHost, dbUser, dbPassword, dbName, dbPort)
-		log.Println("Using local PostgreSQL connection string")
+	if dbURL == "" {
+		log.Fatal("DATABASE_URL environment variable is missing. Set it in Railway.")
 	}
 
-	// Connect to PostgreSQL
 	var err error
 	db, err = gorm.Open(postgres.Open(dbURL), &gorm.Config{})
 	if err != nil {
 		log.Fatalf("Database connection failed: %v", err)
 	}
 
-	// Configure DB Connection Pooling
-	sqlDB, err := db.DB()
-	if err != nil {
-		log.Fatalf("Failed to configure DB connection pool: %v", err)
-	}
-	sqlDB.SetMaxOpenConns(20) // Max 20 concurrent connections
-	sqlDB.SetMaxIdleConns(10) // Keep 10 idle connections
-	sqlDB.SetConnMaxLifetime(30 * time.Minute)
-
-	// Auto-create tables if needed
-	db.AutoMigrate(&ProductURL{})
-	log.Println("Database initialized successfully")
+	log.Println("Database connected successfully")
 }
+
 
 // --- Initialize Redis Client ---
 // func initRedis() {
