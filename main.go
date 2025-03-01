@@ -1,22 +1,20 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
-	//"fmt"
+	"fmt"
 	"log"
-	"math/rand"
-	"net/url"
+	//"math/rand"
 	"os"
 	"regexp"
 	"strings"
-
-	//"strconv"
 	"sync"
 	"time"
 
 	"github.com/chromedp/chromedp"
-	//"github.com/joho/godotenv"
+	"github.com/joho/godotenv"
 	"github.com/redis/go-redis/v9"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -24,10 +22,10 @@ import (
 
 // --- Constants ---
 const (
-	redisExpiry    = 24 * time.Hour
-	crawlTimeout   = 30 * time.Second
-	scrollAttempts = 5
-	pageLoadDelay  = 2 * time.Second
+	redisExpiry     = 24 * time.Hour
+	crawlTimeout    = 30 * time.Second
+	scrollAttempts  = 5
+	pageLoadDelay   = 2 * time.Second
 )
 
 // --- Global Variables ---
@@ -36,8 +34,8 @@ var (
 	redisClient *redis.Client
 )
 
-// --- Regex Pattern for Product URLs ---
-var productURLPattern = regexp.MustCompile(`/(dp|gp/product|product|item|shop|p)/[a-zA-Z0-9-_]+(/|\?|$)`)
+// --- Improved Regex for Product URLs ---
+var productURLPattern = regexp.MustCompile(`(?i)/(dp|gp/product|product|products|item|itm|shop|detail|p)/[a-zA-Z0-9-]+(/|\?|$)`)
 
 // --- Database Model ---
 type ProductURL struct {
@@ -52,227 +50,61 @@ type CrawlResult struct {
 	URLs   []string `json:"urls"`
 }
 
-// --- Load Environment Variables ---
-// func loadEnv() {
-// 	err := godotenv.Load(".env")
-// 	if err != nil {
-// 		log.Fatal("Error loading .env file")
-// 	}
-// }
+// --- Load Domains from File ---
+func loadDomains(filename string) ([]string, error) {
+	file, err := os.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
 
-// --- Initialize PostgreSQL Connection ---
-// func initDB() {
-// 	//loadEnv() // Load env variables
-
-// 	dbHost := os.Getenv("DB_HOST")
-// 	dbUser := os.Getenv("DB_USER")
-// 	dbPassword := os.Getenv("DB_PASSWORD")
-// 	dbName := os.Getenv("DB_NAME")
-// 	dbPort := os.Getenv("DB_PORT")
-
-// 	if dbHost == "" || dbUser == "" || dbPassword == "" || dbName == "" || dbPort == "" {
-// 		log.Fatal("Database credentials are missing in .env file")
-// 	}
-
-// 	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
-// 		dbHost, dbUser, dbPassword, dbName, dbPort)
-
-// 	var err error
-// 	db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
-// 	if err != nil {
-// 		log.Fatalf("Database connection failed: %v", err)
-// 	}
-
-// 	// Configure connection pooling
-// 	sqlDB, err := db.DB()
-// 	if err != nil {
-// 		log.Fatalf("Failed to configure DB connection pool: %v", err)
-// 	}
-// 	sqlDB.SetMaxOpenConns(20) // Max 20 concurrent connections
-// 	sqlDB.SetMaxIdleConns(10) // Keep 10 idle connections
-// 	sqlDB.SetConnMaxLifetime(30 * time.Minute)
-
-// 	// Auto-create table
-// 	db.AutoMigrate(&ProductURL{})
-// 	log.Println("Database initialized successfully")
-// }
-
-// func initDB() {
-// 	// First, check if Railway's `DATABASE_URL` is available
-// 	dbURL := os.Getenv("DATABASE_URL")
-// 	dbURL = strings.TrimSpace(dbURL)
-
-// 	if dbURL != "" {
-// 		// If `DATABASE_URL` exists (on Railway), use it directly
-// 		log.Println("Using Railway DATABASE_URL for DB connection")
-// 	} else {
-// 		// Otherwise, fallback to individual `.env` variables (for local development)
-// 		dbHost := os.Getenv("DB_HOST")
-// 		dbUser := os.Getenv("DB_USER")
-// 		dbPassword := os.Getenv("DB_PASSWORD")
-// 		dbName := os.Getenv("DB_NAME")
-// 		dbPort := os.Getenv("DB_PORT")
-
-// 		if dbHost == "" || dbUser == "" || dbPassword == "" || dbName == "" || dbPort == "" {
-// 			log.Fatal("Database credentials are missing in environment variables")
-// 		}
-
-// 		// Construct DSN for local PostgreSQL
-// 		dbURL = fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
-// 			dbHost, dbUser, dbPassword, dbName, dbPort)
-// 		log.Println("Using local PostgreSQL connection string")
-// 	}
-
-// 	// Connect to PostgreSQL
-// 	var err error
-// 	db, err = gorm.Open(postgres.Open(dbURL), &gorm.Config{})
-// 	if err != nil {
-// 		log.Fatalf("Database connection failed: %v", err)
-// 	}
-
-// 	// Configure DB Connection Pooling
-// 	sqlDB, err := db.DB()
-// 	if err != nil {
-// 		log.Fatalf("Failed to configure DB connection pool: %v", err)
-// 	}
-// 	sqlDB.SetMaxOpenConns(20) // Max 20 concurrent connections
-// 	sqlDB.SetMaxIdleConns(10) // Keep 10 idle connections
-// 	sqlDB.SetConnMaxLifetime(30 * time.Minute)
-
-// 	// Auto-create tables if needed
-// 	db.AutoMigrate(&ProductURL{})
-// 	log.Println("Database initialized successfully")
-// }
-func initDB() {
-	dbURL := os.Getenv("DATABASE_URL")
-	dbURL = strings.TrimSpace(dbURL) // Remove any trailing spaces/newlines
-
-	if dbURL == "" {
-		log.Fatal("DATABASE_URL environment variable is missing. Set it in Railway.")
+	var domains []string
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		domains = append(domains, strings.TrimSpace(scanner.Text()))
 	}
 
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+	return domains, nil
+}
+//--- Load Environment Variables ---
+func loadEnv() {
+	err := godotenv.Load(".env")
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+}
+
+func initDB() {
+	loadEnv() // Load env variables
+
+	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
+		os.Getenv("DB_HOST"), os.Getenv("DB_USER"), os.Getenv("DB_PASSWORD"),
+		os.Getenv("DB_NAME"), os.Getenv("DB_PORT"))
+
 	var err error
-	db, err = gorm.Open(postgres.Open(dbURL), &gorm.Config{})
+	db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		log.Fatalf("Database connection failed: %v", err)
 	}
 
-	log.Println("Database connected successfully")
+	db.AutoMigrate(&ProductURL{})
+	log.Println("Database initialized successfully")
 }
 
-
 // --- Initialize Redis Client ---
-// func initRedis() {
-// 	//redisAddr := os.Getenv("REDIS_ADDR")
-// 	if redisAddr == "" {
-// 		log.Fatal("REDIS_ADDR is missing in .env file")
-// 	}
-
-// 	redisClient = redis.NewClient(&redis.Options{Addr: redisAddr})
-// 	_, err := redisClient.Ping(context.Background()).Result()
-// 	if err != nil {
-// 		log.Fatalf("Failed to connect to Redis: %v", err)
-// 	}
-
-// 	log.Println("Redis connected successfully")
-// }
-
 func initRedis() {
-	// Get Redis URL from environment variables
-	redisURL := os.Getenv("REDIS_URL")
-	redisURL = strings.TrimSpace(redisURL) // Remove trailing newline/spaces
+	redisAddr := os.Getenv("REDIS_ADDR")
+	redisClient = redis.NewClient(&redis.Options{Addr: redisAddr})
 
-	if redisURL == "" {
-		log.Fatal("REDIS_URL environment variable is missing. Set it in Railway.")
-	}
-
-	// Parse Redis URL to extract host and password
-	parsedURL, err := url.Parse(redisURL)
-	if err != nil {
-		log.Fatalf("Invalid REDIS_URL format: %v", err)
-	}
-
-	// Extract password (if available)
-	redisPassword, _ := parsedURL.User.Password()
-	redisHost := parsedURL.Host // This contains "host:port"
-
-	// Create Redis client
-	redisClient = redis.NewClient(&redis.Options{
-		Addr:     redisHost,
-		Password: redisPassword, // If no password, this will be empty
-	})
-
-	// Test Redis connection
-	_, err = redisClient.Ping(context.Background()).Result()
+	_, err := redisClient.Ping(context.Background()).Result()
 	if err != nil {
 		log.Fatalf("Failed to connect to Redis: %v", err)
 	}
 
 	log.Println("Redis connected successfully")
-}
-
-// --- Check if URL is Already Visited (Redis) ---
-func isURLVisited(url string) bool {
-	exists, err := redisClient.Exists(context.Background(), url).Result()
-	if err != nil {
-		log.Printf("Redis error: %v", err)
-		return false
-	}
-	return exists> 0
-}
-
-// --- Mark URL as Visited (Redis) ---
-func markURLVisited(url string) {
-	if err := redisClient.Set(context.Background(), url, 1, redisExpiry).Err(); err != nil {
-		log.Printf("Failed to mark URL as visited: %v", err)
-	}
-}
-
-// --- Handle Infinite Scrolling ---
-func performInfiniteScroll(ctx context.Context) {
-	for i := 0; i < scrollAttempts; i++ {
-		err := chromedp.Run(ctx,
-			chromedp.Evaluate(`window.scrollBy(0, document.body.scrollHeight)`, nil),
-			chromedp.Sleep(time.Duration(rand.Intn(3)+2)*time.Second), // Random delay to mimic human behavior
-		)
-		if err != nil {
-			log.Printf("Scrolling error: %v", err)
-			return
-		}
-	}
-}
-
-// --- Handle Pagination ---
-// func clickNextPage(ctx context.Context) bool {
-// 	var nextExists bool
-// 	err := chromedp.Run(ctx,
-// 		chromedp.Evaluate(`document.querySelector('a.next-page') !== null`, &nextExists),
-// 	)
-// 	if err != nil || !nextExists {
-// 		return false
-// 	}
-
-// 	err = chromedp.Run(ctx,
-// 		chromedp.Evaluate(`document.querySelector('a.next-page').click()`, nil),
-// 		chromedp.Sleep(pageLoadDelay),
-// 	)
-// 	return err == nil
-// }
-
-// --- Store Product URLs in Database ---
-func storeProductURLs(urls []string, domain string) {
-	for _, url := range urls {
-		// Ensure uniqueness before inserting into the database
-		var count int64
-		db.Model(&ProductURL{}).Where("url = ?", url).Count(&count)
-
-		if count == 0 { // Insert only if URL doesn't exist
-			db.Create(&ProductURL{Domain: domain, URL: url})
-			log.Printf("Stored product URL: %s", url)
-		} else {
-			log.Printf("Duplicate URL skipped: %s", url)
-		}
-	}
 }
 
 // --- Extract Product URLs from Page ---
@@ -295,12 +127,6 @@ func extractProductURLs(htmlContent, baseURL string) []string {
 func scrapeWebsite(url string, resultChan chan<- CrawlResult, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	if isURLVisited(url) {
-		log.Printf("Skipping already crawled URL: %s", url)
-		return
-	}
-	markURLVisited(url)
-
 	opts := chromedp.DefaultExecAllocatorOptions[:]
 	allocCtx, cancel := chromedp.NewExecAllocator(context.Background(), opts...)
 	defer cancel()
@@ -321,23 +147,23 @@ func scrapeWebsite(url string, resultChan chan<- CrawlResult, wg *sync.WaitGroup
 		log.Printf("Failed to load page: %s | Error: %v", url, err)
 		return
 	}
-	//
-	log.Printf("Performing infinite scroll on: %s", url)
-	performInfiniteScroll(ctx)
-	chromedp.Run(ctx, chromedp.OuterHTML(`html`, &htmlContent))
-	//
 
 	productURLs := extractProductURLs(htmlContent, url)
-
-	//
 	storeProductURLs(productURLs, url)
-	//
-
-	for _, url := range productURLs {
-		db.Create(&ProductURL{Domain: url, URL: url})
-	}
 
 	resultChan <- CrawlResult{Domain: url, URLs: productURLs}
+}
+
+// --- Store Product URLs in Database ---
+func storeProductURLs(urls []string, domain string) {
+	for _, url := range urls {
+		var count int64
+		db.Model(&ProductURL{}).Where("url = ?", url).Count(&count)
+
+		if count == 0 {
+			db.Create(&ProductURL{Domain: domain, URL: url})
+		}
+	}
 }
 
 // --- Save Results to JSON File ---
@@ -358,10 +184,9 @@ func main() {
 	initDB()
 	initRedis()
 
-	domains := []string{
-		"https://www.amazon.com/s?k=iphone",
-		"https://www.snapdeal.com/search?keyword=mobile",
-		"https://www.myntra.com/mobiles",
+	domains, err := loadDomains("domains.txt")
+	if err != nil {
+		log.Fatalf("Error loading domains: %v", err)
 	}
 
 	var results []CrawlResult
@@ -382,3 +207,5 @@ func main() {
 
 	saveResults(results)
 }
+
+
