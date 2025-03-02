@@ -1,5 +1,12 @@
+https://www.amazon.com/s?k=pants
+https://www.amazon.com/s?k=shoes
+https://www.amazon.com/s?k=watch
 https://www.amazon.com/s?k=iphone
-https://www.snapdeal.com/search?keyword=fridge
-https://www.myntra.com/mobiles
-https://www.ebay.com/sch/i.html?_nkw=shoes
-https://www.flipkart.com/search?q=laptop
+https://www.amazon.com/s?k=mac
+https://www.amazon.com/s?k=laptops
+https://www.flipkart.com/search?q=shirt
+https://www.flipkart.com/search?q=shoes
+https://www.flipkart.com/search?q=watch
+https://www.flipkart.com/search?q=mac
+https://www.snapdeal.com/search?keyword=shirt
+https://www.snapdeal.com/search?keyword=shoes
