@@ -208,13 +208,14 @@
 // 	saveResults(results)
 // }
 
-
 package main
 
 import (
 	"bufio"
 	"context"
+	"math/rand"
 	"encoding/json"
+
 	//"fmt"
 	"log"
 	"os"
